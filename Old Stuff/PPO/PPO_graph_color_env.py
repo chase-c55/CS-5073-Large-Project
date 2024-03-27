@@ -262,7 +262,7 @@ class GraphColoring(gym.Env):
         """Returns an observation of the environment"""
         return np.concatenate((self.graph.flatten(), self.node_colors))
 
-    def reset(self, seed=None ):
+    def reset(self, seed=None):
         """Resets the node colors all to 0 (uncolored) and returns an observation"""
         self.node_colors = np.zeros(len(graph))
         return self.observation(), {}
