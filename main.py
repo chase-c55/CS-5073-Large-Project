@@ -56,8 +56,11 @@ def setup_data(graph_matrix):
     num_nodes = graph_matrix.shape[0]
     node_features = torch.eye(num_nodes)
 
+    node_degrees = torch.tensor([graph.degree[i] for i in range(num_nodes)], dtype=torch.float).view(-1, 1)
+    print("Node Degrees: ", node_degrees)
+
     # Update the Data object
-    data = Data(x=node_features, edge_index=edge_index, num_nodes=num_nodes, num_edges=edge_index.shape[1])
+    data = Data(x=node_degrees, edge_index=edge_index, num_nodes=num_nodes, num_edges=edge_index.shape[1])
 
     print(data)
     print(data.edge_index)
@@ -100,7 +103,7 @@ def train(model, data, color, criterion, optimizer):
 
     return color, model
 
-graph_matrix = choose_graph(16)
+graph_matrix = choose_graph(4)
 
 graph = nx.from_numpy_array(graph_matrix)
 print("Graph:", graph)
@@ -133,7 +136,9 @@ color, model = train(model, data, color, criterion, optimizer)
 
 out = model(data.x, data.edge_index)
 
-#color = torch.argmax(out, dim=1)
+print("Final Out: ", out)
+
+color = torch.argmax(out, dim=1)
 
 visualize_graph(graph, color)
 
