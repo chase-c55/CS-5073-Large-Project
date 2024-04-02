@@ -65,7 +65,7 @@ def setup_data(graph_matrix):
     print(data.x)
 
     num_features = data.x.shape[1]
-    num_classes = 4
+    num_classes = len(graph_matrix)
     print("Num Features: ", num_features)
     print("Num Colors Available: ", num_classes)
 
@@ -78,8 +78,6 @@ def train(model, data, color, criterion, optimizer):
         model.train()
         optimizer.zero_grad()
         out = model(data.x, data.edge_index)
-        print("Out: ", out)
-        input("Press Enter to continue...")
         
         loss = criterion(out, color)
         loss.backward()
@@ -102,7 +100,7 @@ def train(model, data, color, criterion, optimizer):
 
     return color, model
 
-graph_matrix = choose_graph(8)
+graph_matrix = choose_graph(16)
 
 graph = nx.from_numpy_array(graph_matrix)
 print("Graph:", graph)
@@ -135,16 +133,9 @@ color, model = train(model, data, color, criterion, optimizer)
 
 out = model(data.x, data.edge_index)
 
-color = torch.argmax(out, dim=1)
+#color = torch.argmax(out, dim=1)
 
 visualize_graph(graph, color)
-
-# save the graph with a color attribute indicating its coloring
-for i in range(num_nodes):
-    graph.nodes[i]["color"] = color[i].item()
-
-# save the graph to a gml file
-nx.write_gml(graph, "graph.gml")
 
 
 
