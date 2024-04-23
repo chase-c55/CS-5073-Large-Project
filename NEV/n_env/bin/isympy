@@ -1,4 +1,6 @@
-#!/Users/charlescornelison/Dev/CS-5073-Large-Project/gnn_env/bin/python3.11
+#!/bin/sh
+'''exec' "/Users/charlescornelison/Library/Mobile Documents/com~apple~CloudDocs/School/Spring24/ANNE/CS-5073-Large-Project/NEV/n_env/bin/python" "$0" "$@"
+' '''
 # -*- coding: utf-8 -*-
 import re
 import sys
