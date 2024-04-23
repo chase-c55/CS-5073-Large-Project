@@ -20,6 +20,8 @@ from optimizer import *
 from DQN_graph_color_env import *
 
 from tqdm import tqdm
+import numpy as np
+import random
 
 env = GraphColoring()
 
@@ -59,12 +61,24 @@ def create_individual():
         'lr': lr
     }
 
+
 def crossover(parent_1, parent_2):
-    # Create two children from the two parents using single point crossover
-    cut = random.randint(0, len(parent_1) - 1)
-    child_1 = parent_1[:cut] + parent_2[cut:]
-    child_2 = parent_2[:cut] + parent_1[cut:]
+    # Choose a random crossover point
+    cut = random.randint(1, min(len(parent_1['layers']), len(parent_2['layers'])))
+    child_1 = {
+        'layers': parent_1['layers'][:cut] + parent_2['layers'][cut:],
+        'activations': parent_1['activations'][:cut+1] + parent_2['activations'][cut+1:],
+        'tau': random.choice([parent_1['tau'], parent_2['tau']]),
+        'lr': random.choice([parent_1['lr'], parent_2['lr']])
+    }
+    child_2 = {
+        'layers': parent_2['layers'][:cut] + parent_1['layers'][cut:],
+        'activations': parent_2['activations'][:cut+1] + parent_1['activations'][cut+1:],
+        'tau': random.choice([parent_1['tau'], parent_2['tau']]),
+        'lr': random.choice([parent_1['lr'], parent_2['lr']])
+    }
     return child_1, child_2
+
 
 def mutate(individual):
     if random.random() < MUTATION_RATE:
