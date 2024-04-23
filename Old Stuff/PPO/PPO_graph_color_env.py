@@ -244,18 +244,18 @@ class GraphColoring(gym.Env):
         self.actions = actions
         self.action_space = gym.spaces.Discrete(max_colors * len(graph))
         self.observations = observations
-        self.observation_space = gym.spaces.Dict(
-            {
-                "graph": gym.spaces.Box(
-                    low=0, high=1, shape=(len(graph), len(graph)), dtype=np.int64
-                ),
-                "node_colors": gym.spaces.Box(
-                    low=0, high=max_colors, shape=(len(graph),), dtype=np.int64
-                ),
-            }
-        )
+        # self.observation_space = gym.spaces.Dict(
+        #     {
+        #         "graph": gym.spaces.Box(
+        #             low=0, high=1, shape=(len(graph), len(graph)), dtype=np.int64
+        #         ),
+        #         "node_colors": gym.spaces.Box(
+        #             low=0, high=max_colors, shape=(len(graph),), dtype=np.int64
+        #         ),
+        #     }
+        # )
         self.observation_space = gym.spaces.Box(
-            low=0, high=1, shape=(len(graph) * len(graph) + len(graph),), dtype=np.int64
+            low=0, high=max_colors, shape=(len(graph) * len(graph) + len(graph),), dtype=np.int64
         )
 
     def observation(self):

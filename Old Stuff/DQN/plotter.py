@@ -17,8 +17,11 @@ def plot_durations(reward, episode_durations, avg_reward, show_result=False):
         plt.title("Training...")
     plt.xlabel("Episode")
     plt.ylabel("Reward / Duration")
-    
+
+    running_avg = [sum(episode_durations[i : i + 100]) / 100 for i in range(len(episode_durations) - 100)]
+        
     plt.plot(durations_t.numpy(), label="Num Steps")
+    plt.plot(running_avg, label = "Avg Steps")
     plt.plot(reward_t.numpy(), label="Reward")
     plt.plot(avg_reward.numpy(), label="Avg Reward")
     plt.legend()

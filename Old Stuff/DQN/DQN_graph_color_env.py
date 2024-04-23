@@ -5,8 +5,6 @@ import networkx as nx
 import gymnasium as gym
 import matplotlib.pyplot as plt
 
-REWARD_PER_EDGE = 5
-
 
 def draw_graph(graph: np.ndarray, node_colors: np.ndarray):
     plt.figure(1, clear=True)
