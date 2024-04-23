@@ -181,6 +181,12 @@ for generation in tqdm(range(NUM_GENERATIONS), desc="Generations"):
 
         
     population = select_top_fifty(population_rewards, population)
+    # Shuffle the population
+    random.shuffle(population)
+    # Crossover the top half of the population
+    for i in range(0, len(population), 2):
+        population.extend(crossover(population[i], population[i + 1]))
+
     generation_metrics.append(max(population_rewards))
 
 # Save the best individual
