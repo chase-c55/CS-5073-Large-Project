@@ -19,28 +19,69 @@ from optimizer import *
 # from graph_color_env import *
 from DQN_graph_color_env import *
 
+from tqdm import tqdm
+
 env = GraphColoring()
 
 # if gpu is to be used
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 print(f"Using {device}")
 
-
-# training
-# BATCH_SIZE is the number of transitions sampled from the replay buffer
-# GAMMA is the discount factor as mentioned in the previous section
-# EPS_START is the starting value of epsilon
-# EPS_END is the final value of epsilon
-# EPS_DECAY controls the rate of exponential decay of epsilon, higher means a slower decay
-# TAU is the update rate of the target network
-# LR is the learning rate of the AdamW optimizer
-BATCH_SIZE = 128
-GAMMA = 0.99
+# Parameter domains
+POPULATION_SIZE = 12
+NUM_GENERATIONS = 100
+MUTATION_RATE = 0.15
+TAU_DOMAIN = [0.001, 0.005, 0.01, 0.02, 0.05]
+LR_DOMAIN = [0.001, 0.002, 0.005, 0.008, 0.01]
+LAYERS_DOMAIN = [1, 2, 3, 4]
+NEURONS_DOMAIN = [2, 4, 8, 16, 32, 64]
+ACTIVATIONS_DOMAIN = [F.relu, F.softmax, torch.sigmoid, F.leaky_relu, torch.tanh]
+SELECTION_CUT = 0.5
 EPS_START = 0.9
 EPS_END = 0.05
 EPS_DECAY = 1000
-TAU = 0.005
-LR = 1e-4
+BATCH_SIZE = 64
+NUM_EPISODES = 1000
+DISCOUNT_FACTOR = 1.0
+MEMORY_SIZE = 10000
+OUTPUT_CONTINUOUS = True
+
+def create_individual():
+    num_layers = random.choice(LAYERS_DOMAIN)
+    layers = random.choices(NEURONS_DOMAIN, k=num_layers)
+    activations = random.choices(ACTIVATIONS_DOMAIN, k=num_layers + 1)
+    tau = random.choice(TAU_DOMAIN)
+    lr = random.choice(LR_DOMAIN)
+    return {
+        'layers': layers,
+        'activations': activations,
+        'tau': tau,
+        'lr': lr
+    }
+
+def crossover(parent_1, parent_2):
+    # Create two children from the two parents using single point crossover
+    cut = random.randint(0, len(parent_1) - 1)
+    child_1 = parent_1[:cut] + parent_2[cut:]
+    child_2 = parent_2[:cut] + parent_1[cut:]
+    return child_1, child_2
+
+def mutate(individual):
+    if random.random() < MUTATION_RATE:
+        individual['tau'] = random.choice(TAU_DOMAIN)
+    if random.random() < MUTATION_RATE:
+        individual['lr'] = random.choice(LR_DOMAIN)
+    if random.random() < MUTATION_RATE:
+        individual['layers'] = random.choices(NEURONS_DOMAIN, k=random.choice(LAYERS_DOMAIN))
+    if random.random() < MUTATION_RATE:
+        individual['activations'] = random.choices(ACTIVATIONS_DOMAIN, k=len(individual['layers']) + 1)
+    return individual
+
+def select_top_fifty(rewards, population):
+    # Sort the population by the rewards
+    sorted_population = sorted(zip(rewards, population), key=lambda x: x[0], reverse=True)
+    # Select the top half of the population
+    return [individual for _, individual in sorted_population[:len(population) // 2]]
 
 # Get number of actions from gym action space
 n_actions = env.action_space.n
@@ -48,111 +89,112 @@ n_actions = env.action_space.n
 state, info = env.reset()
 n_observations = len(state["graph"].flatten(order="C")) + len(state["node_colors"])
 
-policy_net = DQN(n_observations, n_actions).to(device)
-target_net = DQN(n_observations, n_actions).to(device)
-target_net.load_state_dict(policy_net.state_dict())
+population = [create_individual() for _ in range(POPULATION_SIZE)]
 
-optimizer = optim.AdamW(policy_net.parameters(), lr=LR, amsgrad=True)
-memory = ReplayMemory(10000)
+generation_metrics = []
 
-num_episodes = 10000
-# if torch.cuda.is_available():
-#     num_episodes = 600
-# else:
-#     num_episodes = 50
+# Logging to CSV
+csv_file = open('generation_data.csv', 'w', newline='')
+csv_writer = csv.writer(csv_file)
+csv_writer.writerow(['generation', 'individual_index', 'fitness', 'tau', 'lr', 'layers', 'activations'])
 
 
-# initial variables that needed to be "zeroed out"
-steps_done = 0
-episode_durations = []
-reward_history = []
-avg_reward = []
+for generation in tqdm(range(NUM_GENERATIONS), desc="Generations"):
+    print(f"Generation {generation + 1}")
+    population_rewards = []
+    for index, individual in enumerate(tqdm(population, desc="Individuals")):
+        policy_net = DQN(n_observations, n_actions, individual['layers'], individual['activations']).to(device)
+        target_net = DQN(n_observations, n_actions, individual['layers'], individual['activations']).to(device)
+        target_net.load_state_dict(policy_net.state_dict())
+        optimizer = optim.AdamW(policy_net.parameters(), lr=individual['lr'], amsgrad=True)
+        memory = ReplayMemory(MEMORY_SIZE)
 
-OUTPUT_CONTINUOUS = True
+        steps_done = 0
+        episode_durations = []
+        reward_history = []
+        avg_reward = []
 
-csv_file = open('output.csv', 'w')
-writer = csv.writer(csv_file)
-writer.writerow(["episode", "steps", "reward", "num_colors"])
-
-# main loop
-for i_episode in range(num_episodes):
-    print("#" * 80)
-    print("On episode: ", i_episode)
-    # Initialize the environment and get it's state
-    obs, info = env.reset()
-    state = torch.tensor(
-        obs["graph"].flatten(order="C"), dtype=torch.int64, device=device
-    )
-    state = torch.concat(
-        (state, torch.tensor(obs["node_colors"], dtype=torch.int64, device=device))
-    )
-    for t in count():
-        # Pick the action and increment the steps taken
-        action = select_action(
-            state, env, steps_done, policy_net, EPS_START, EPS_END, EPS_DECAY, device
-        )
-
-        observation, reward, terminated, truncated, _ = env.step(action.item())
-        reward = torch.tensor([reward], device=device)
-        done = terminated or truncated
-
-        if terminated:
-            next_state = None
-        else:
-            next_state = torch.tensor(
-                observation["graph"].flatten(order="C"),
-                dtype=torch.int64,
-                device=device,
+        for i_episode in tqdm(range(NUM_EPISODES), desc="Episodes"):
+            state, info = env.reset()
+            graph_tensor = torch.tensor(
+                state["graph"].flatten(order="C"), dtype=torch.int64, device=device
             )
-            next_state = torch.concat(
-                (
-                    next_state,
-                    torch.tensor(
-                        observation["node_colors"], dtype=torch.int64, device=device
-                    ),
+            node_colors_tensor = torch.tensor(
+                state["node_colors"], dtype=torch.int64, device=device
+            )
+            state = torch.concat((graph_tensor, node_colors_tensor))
+            for t in count():
+                action = select_action(
+                    state, env, steps_done, policy_net, EPS_START, EPS_END, EPS_DECAY, device
                 )
-            )
+                observation, reward, terminated, truncated, _ = env.step(action.item())
+                reward = torch.tensor([reward], device=device)
+                done = terminated or truncated
+                if terminated:
+                    next_state = None
+                else:
+                    next_graph_tensor = torch.tensor(
+                        observation["graph"].flatten(order="C"),
+                        dtype=torch.int64,
+                        device=device
+                    )
+                    next_node_colors_tensor = torch.tensor(
+                        observation["node_colors"],
+                        dtype=torch.int64,
+                        device=device
+                    )
+                    next_state = torch.concat(
+                        (next_graph_tensor, next_node_colors_tensor)
+                    )
 
-        # Store the transition in memory
-        memory.push(state, action, next_state, reward)
+                memory.push(state, action, next_state, reward)
 
-        # Move to the next state
-        state = next_state
+                state = next_state
 
-        # Perform one step of the optimization (on the policy network)
-        optimize_model(
-            policy_net, target_net, memory, optimizer, device, GAMMA, BATCH_SIZE
-        )
+                optimize_model(
+                    policy_net, target_net, memory, optimizer, device, DISCOUNT_FACTOR, BATCH_SIZE
+                )
 
-        # Soft update of the target network's weights
-        # θ′ ← τ θ + (1 −τ )θ′
-        target_net_state_dict = target_net.state_dict()
-        policy_net_state_dict = policy_net.state_dict()
-        for key in policy_net_state_dict:
-            target_net_state_dict[key] = policy_net_state_dict[
-                key
-            ] * TAU + target_net_state_dict[key] * (1 - TAU)
-        target_net.load_state_dict(target_net_state_dict)
+                target_net_state_dict = target_net.state_dict()
+                policy_net_state_dict = policy_net.state_dict()
+                for key in policy_net_state_dict:
+                    target_net_state_dict[key] = policy_net_state_dict[
+                        key
+                    ] * individual['tau'] + target_net_state_dict[key] * (1 - individual['tau'])
+                target_net.load_state_dict(target_net_state_dict)
 
-        if done:
-            episode_durations.append(t + 1)
-            reward_history.append(reward)
-            
-            # avg_reward.append(np.mean(reward_history))
-            if OUTPUT_CONTINUOUS:
-              draw_graph(observation["graph"], observation["node_colors"])
-              plot_durations(reward_history, episode_durations, avg_reward)
+                if done:
+                    episode_durations.append(t + 1)
+                    reward_history.append(reward)
 
-            num_colors_used = len(set(observation['node_colors']))
-            print(
-                f"Steps: {t} Reward: {reward.item()} Num Colors: {num_colors_used}"
-            )
-            writer.writerow([i_episode, t, reward.item(), num_colors_used])
-            break
 
-# with open(f"dqn-{int(time.time())}.pt", "wb") as f:
-#     torch.save(policy_net, f)  # TODO: Is this right?
+                    num_colors_used = len(set(observation['node_colors']))
+                    # print(
+                    #     f"Steps: {t} Reward: {reward.item()} Num Colors: {num_colors_used}"
+                    # )
+                    break
+
+        # Save the individual's performance
+        fitness = np.mean(reward_history)
+        population_rewards.append(fitness)
+        csv_writer.writerow([generation, index, fitness, individual['tau'], individual['lr'], individual['layers'], individual['activations']])
+
+        
+    population = select_top_fifty(population_rewards, population)
+    generation_metrics.append(max(population_rewards))
+
+# Save the best individual
+best_individual = population[0]
+with open(f"best_individual-{int(time.time())}.pkl", "wb") as f:
+    pickle.dump(best_individual, f)
 
 csv_file.close()
-print("Complete!")
-plot_durations(reward_history, episode_durations, avg_reward, show_result=True)
+
+# Plotting generation vs best fitness
+plt.figure(figsize=(10, 5))
+plt.plot(generation_metrics, label='Best Fitness per Generation')
+plt.xlabel('Generation')
+plt.ylabel('Best Fitness')
+plt.title('Best Fitness Evolution Over Generations')
+plt.legend()
+plt.savefig('fitness_evolution.png')
