@@ -5,8 +5,6 @@ import networkx as nx
 import gymnasium as gym
 import matplotlib.pyplot as plt
 
-REWARD_PER_EDGE = 5
-
 
 def draw_graph(graph: np.ndarray, node_colors: np.ndarray):
     plt.figure(1, clear=True)
@@ -179,19 +177,15 @@ else:
     in_graph = nx.read_adjlist(input_graph_file, nodetype=int)
     graph = nx.to_numpy_array(in_graph)
 
-max_colors = len(graph)  # TODO: Make this an input parameter
+colors_response = input("Enter max number of colors to use (default = # of nodes): ")
+
+if colors_response == "":
+    max_colors = len(graph)
+else:
+    max_colors = colors_response
+
 # Start the node's uncolored (0)
 node_colors = np.array([0 for i in range(len(graph))])
-draw_graph(graph, node_colors)
-
-# node_order = [i for i in range(len(graph))]
-# print("Old node order: ", node_order)
-# print(graph)
-
-# random.shuffle(node_order)
-# print("New node order: ", node_order)
-# permuted_graph = permute_graph(graph, node_order)
-# print(permuted_graph)
 
 # Our action space consists of each node with each possible color
 actions = [i for i in range(max_colors * len(graph))]
@@ -203,6 +197,7 @@ observations = graph, node_colors
 class GraphColoring(gym.Env):
     def __init__(self):
         self.num_steps = 0
+        self.graph = graph
         self.actions = actions
         self.action_space = gym.spaces.Discrete(max_colors * len(graph))
         self.observations = observations
@@ -218,15 +213,16 @@ class GraphColoring(gym.Env):
         )
 
     def observation(self):
+        """Returns an observation of the environment"""
         return {"graph": self.graph, "node_colors": self.node_colors}
 
     def reset(self):
-        """Reset the node colors to all 0s"""
-        self.graph = graph
+        """Resets the node colors all to 0 (uncolored) and returns an observation"""
         self.node_colors = np.zeros(len(graph))
         return self.observation(), {}
 
-    def step(self, action):
+    def step(self, action: int):
+        """Takes a step in the environment given an action"""
         self.num_steps += 1
         old_node_colors = np.copy(self.node_colors)
         color_node(self.node_colors, action)
@@ -236,3 +232,28 @@ class GraphColoring(gym.Env):
         info = {}
 
         return self.observation(), reward, done, False, info
+
+    def render(self):
+        """Renders the current graph with coloring by outputting to a file
+
+        Returns:
+            np.ndarray, np.array: the current graph, the current node colors
+        """
+
+        plt.figure(1, clear=True)
+        draw_graph(self.graph, self.node_colors, "colored_graph.png")
+        return self.graph, self.node_colors
+
+    def permute(self) -> list[int]:
+        """Permutes the graph and returns the new node order
+
+        Returns:
+            list: the new node order
+        """
+
+        node_order = [i for i in range(len(graph))]
+        self.graph = graph  # Resets graph so new node order is consistent
+
+        random.shuffle(node_order)
+        self.graph = permute_graph(self.graph, node_order)
+        return node_order
