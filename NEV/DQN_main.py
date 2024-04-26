@@ -114,9 +114,8 @@ csv_writer.writerow(['generation', 'individual_index', 'fitness', 'tau', 'lr', '
 
 
 for generation in tqdm(range(NUM_GENERATIONS), desc="Generations"):
-    print(f"Generation {generation + 1}")
     population_rewards = []
-    for index, individual in enumerate(tqdm(population, desc="Individuals")):
+    for index, individual in enumerate(tqdm(population, desc="Individuals", leave=False)):
         policy_net = DQN(n_observations, n_actions, individual['layers'], individual['activations']).to(device)
         target_net = DQN(n_observations, n_actions, individual['layers'], individual['activations']).to(device)
         target_net.load_state_dict(policy_net.state_dict())
@@ -128,7 +127,7 @@ for generation in tqdm(range(NUM_GENERATIONS), desc="Generations"):
         reward_history = []
         avg_reward = []
 
-        for i_episode in tqdm(range(NUM_EPISODES), desc="Episodes"):
+        for i_episode in tqdm(range(NUM_EPISODES), desc="Episodes", leave=False):
             state, info = env.reset()
             graph_tensor = torch.tensor(
                 state["graph"].flatten(order="C"), dtype=torch.int64, device=device
@@ -200,6 +199,9 @@ for generation in tqdm(range(NUM_GENERATIONS), desc="Generations"):
     # Crossover the top half of the population
     for i in range(0, len(population), 2):
         population.extend(crossover(population[i], population[i + 1]))
+
+    for individual in population:
+        mutate(individual)
 
     generation_metrics.append(max(population_rewards))
 
