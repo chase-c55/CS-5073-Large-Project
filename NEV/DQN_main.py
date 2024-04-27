@@ -81,14 +81,18 @@ def crossover(parent_1, parent_2):
 
 
 def mutate(individual):
+    # Mutate the tau parameter
     if random.random() < MUTATION_RATE:
         individual['tau'] = random.choice(TAU_DOMAIN)
+    # Mutate the learning rate
     if random.random() < MUTATION_RATE:
         individual['lr'] = random.choice(LR_DOMAIN)
+    #  Mutate the number of layers and the activation functions
     if random.random() < MUTATION_RATE:
         individual['layers'] = random.choices(NEURONS_DOMAIN, k=random.choice(LAYERS_DOMAIN))
-    if random.random() < MUTATION_RATE:
+        # Update the number of activation functions
         individual['activations'] = random.choices(ACTIVATIONS_DOMAIN, k=len(individual['layers']) + 1)
+        print(f"Mutated layers and activations: {individual['layers']} {individual['activations']}")
     return individual
 
 def select_top_fifty(rewards, population):
