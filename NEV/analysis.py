@@ -22,7 +22,7 @@ OUTPUT_CONTINUOUS = False
 NUM_PERMUTATIONS = 1000
 
 # Original best without mutation
-with open("NEV/best_individual-1713946820.pkl", "rb") as f:
+with open("NEV/Results/Chase/best_individual_v2.pkl", "rb") as f:
     best_individual = pickle.load(f)
 
 print("Best Individual:")
