@@ -5,10 +5,10 @@ import torch.optim as optim
 from tqdm import tqdm
 from itertools import count
 
-from a2c import ActorCritic
-from action_a2c import *                # select_action
+from A2C.a2c import ActorCritic
+from A2C.action_a2c import *                # select_action
 from plotter_a2c import *               # plot_durations
-from A2C_graph_color_env import *   # draw_graph, permute_graph, calculate_reward, color_node, GraphColoring
+from A2C.A2C_graph_color_env import *   # draw_graph, permute_graph, calculate_reward, color_node, GraphColoring
 
 # set hyperparameters
 BATCH_SIZE = 64
