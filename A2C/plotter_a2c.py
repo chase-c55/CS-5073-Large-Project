@@ -1,3 +1,5 @@
+# based on and inspired by Chase's plotter.py file, specialized for A2C.
+
 import matplotlib.pyplot as plt
 import torch
 import numpy as np
