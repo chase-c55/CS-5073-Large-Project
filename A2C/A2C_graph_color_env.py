@@ -1,3 +1,5 @@
+# Credit to Chase, this env script was based on graph_color_env and specialized for the A2C environment.
+
 import random
 import numpy as np
 from typing import Tuple
