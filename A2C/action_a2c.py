@@ -1,3 +1,5 @@
+# simulates an action in a graph coloring state space, based on both node and color action parameters. Inspired by Chase's action.py code, but specialized to fit A2C.
+
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
