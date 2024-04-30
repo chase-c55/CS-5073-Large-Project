@@ -1,3 +1,5 @@
+# This a2c implementation was inspired by Github user Lucasc-99's Actor-Critic RL Algorithm in PyTorch. See the repo here: https://github.com/Lucasc-99/Actor-Critic
+
 import torch
 import torch.nn as nn
 from torch.distributions import Categorical
