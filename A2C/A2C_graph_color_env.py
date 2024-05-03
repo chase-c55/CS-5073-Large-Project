@@ -185,10 +185,10 @@ class GraphColoring(gym.Env):
         old_node_colors = np.copy(self.node_colors)
         node_action, color_action = action
         color_node(self.node_colors, node_action, color_action)
-        print(f"Node colors after action: {self.node_colors}")
+        #print(f"Node colors after action: {self.node_colors}")
 
         reward, done = calculate_reward(self.graph, self.node_colors, old_node_colors)
-        print(f"Done: {done}")
+        #print(f"Done: {done}")
 
         info = {}
 
