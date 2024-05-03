@@ -174,7 +174,7 @@ class GraphColoring(gym.Env):
     def reset(self):
         """Resets the node colors all to 0 (uncolored) and returns an observation"""
         self.node_colors = np.zeros(len(graph))
-        return self.observation(), {}
+        return {"graph": self.graph, "node_colors": self.node_colors}, {}
 
     def step(self, action: int):
         """Takes a step in the environment given an action"""        

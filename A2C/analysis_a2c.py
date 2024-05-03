@@ -138,21 +138,32 @@ print(f"reward_history: {reward_history}")
 print(f"episode_durations: {episode_durations}")
 print(f"avg_reward: {avg_reward}")
 plot_durations(reward_history, episode_durations, avg_reward, True)
+# it stops here(?)
 
 # Save the trained model
+print("Saving Model...")
 torch.save(model, "./trained_model.pt")
 print("Saved Model")
 
 # Load the trained model for permutation testing
+print("Loading Model...")
 trained_model = torch.load("./trained_model.pt")
+print("Model Loaded")
 env = GraphColoring()
+print("Environment Initialized")
 n_node_actions = env.node_action_space.n
-n_color_actions = env.color_action_space.nstate, info = env.reset()
+print(f"Number of node actions: {n_node_actions}")
+n_color_actions = env.color_action_space.n
+state, info = env.reset()
+print(f"State: {state}")
+print(f"Number of color actions: {n_color_actions}")
 n_observations = len(state["graph"].flatten(order="C")) + len(state["node_colors"])
+print(f"Number of observations: {n_observations}")
 
 # Prepare the CSV file for writing permutation test results
 import csv
 
+print("Preparing CSV file for writing permutation test results...")
 csv_file_path = 'testing_results.csv'
 csv_file = open(csv_file_path, 'w', newline='')
 csv_writer = csv.writer(csv_file)
@@ -162,11 +173,23 @@ csv_writer.writerow(['Episode', 'Average Reward', 'Episode Duration'])
 node_order = [i for i in range(len(env.graph))]
 
 # Permutation testing loop
+print("testing loop started")
 try:
     done = False
+    permutation_rewards = []
+    permutation_durations = []
+    
     for iteration in tqdm(
         range(NUM_PERMUTATIONS), desc="Permutation Tests", colour="blue"
     ):
+        # Reset the environment for each permutation
+        state, info = env.reset()
+        node_order = env.permute()
+        
+        # Apply the new node order to the graph
+        permuted_graph = permute_graph(env.graph, node_order)
+        env.graph = permuted_graph
+        
         # Prepare the initial state
         graph_tensor = torch.tensor(
             state["graph"].flatten(order="C"), dtype=torch.int64, device=device
@@ -176,24 +199,29 @@ try:
         )
         state = torch.concat((graph_tensor, node_colors_tensor))
         
+        episode_reward = 0
+        episode_duration = 0
+        
         # Step loop
         for step in count(1):
             # Select an action using the trained model
-            #print("Selecting action...")
             if random.random() < 0.1:  # 10% chance of selecting a random action
                 node_action = torch.randint(0, n_node_actions, (1,), device=device, dtype=torch.long)
                 color_action = torch.randint(0, n_color_actions, (1,), device=device, dtype=torch.long)
                 action = (node_action, color_action)
-                log_prob, value = model.evaluate_action(state, action)
+                node_log_prob, color_log_prob, value = model.evaluate_action(state, action)
+                log_prob = node_log_prob + color_log_prob
             else:
                 action, log_prob, value = select_action(model, state, device)
-            #print(f"Action selected: {action}")            
+            
             # Take a step in the environment
-            #print("Taking a step in the environment...")
-            observation, reward, terminated, truncated, _ = env.step(action.item())
-            #print(f"Step taken. Observation: {observation}, Reward: {reward}, Terminated: {terminated}, Truncated: {truncated}")
-            reward = torch.tensor([reward], device=device) * 10
+            node_action, color_action = action
+            observation, reward, terminated, truncated, _ = env.step((node_action.item(), color_action.item()))
+            reward = torch.tensor([reward], device=device)
             done = terminated or truncated
+            
+            episode_reward += reward.item()
+            episode_duration += 1
             
             # Prepare the next state
             if terminated:
@@ -214,9 +242,9 @@ try:
             
             # Check if the episode is done
             if done or step >= MAX_STEPS:
-                csv_writer.writerow([i_episode, avg_reward[-1], episode_durations[-1]])
-                state, info = env.reset()
-                node_order = env.permute()
+                permutation_rewards.append(episode_reward)
+                permutation_durations.append(episode_duration)
+                csv_writer.writerow([iteration, episode_reward, episode_duration])
                 break
 
 except Exception as e:
