@@ -16,12 +16,12 @@ def plot_durations(reward, episode_durations, avg_reward, show_result=False):
 
     plt.clf()
     plt.plot(durations_t.numpy(), label="Num Steps")
-    plt.plot(reward_t.numpy(), label="Reward")
+    plt.plot(reward_t.numpy(), label="Reward 10x")
     plt.plot(*zip(*running_avg), label = "Avg Steps")
     plt.plot(avg_reward.numpy(), label="Avg Reward")
     
     if show_result:
-        plt.title("Result")
+        plt.title("Evolved DQN Results over 10,000 Epochs")
         plt.scatter(len(running_avg), running_avg[-1][1], label=f"Final Avg Steps = {running_avg[-1][1]}", c="black")
     else:
         plt.title("Training...")
